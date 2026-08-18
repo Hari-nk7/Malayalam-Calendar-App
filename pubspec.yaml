@@ -1,0 +1,55 @@
+name: malayalam_calendar_app
+description: "Offline Malayalam calendar (Kollavarsham) with nakshatra, powered by Swiss Ephemeris."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Swiss Ephemeris FFI bindings — AGPL-3.0
+  # Provides sidereal Sun/Moon longitudes with Lahiri ayanamsa.
+  sweph: ^3.2.1+2.10.3
+
+  # Offline-first caching (Hive)
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # State management
+  flutter_riverpod: ^2.6.1
+
+  # GPS / location permission
+  geolocator: 13.0.2
+
+  # Date formatting for display
+  intl: ^0.19.0
+
+  # Path resolution (used by Hive and Sweph)
+  path_provider: ^2.1.5
+
+  # Google Fonts (Inter + Noto Serif Malayalam)
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    # GeoNames offline city database (cities500, filtered for India + Gulf + diaspora)
+    - assets/geo/cities_india.tsv
+
+    # Swiss Ephemeris data files bundled from the sweph package.
+    # These are extracted from the package at runtime by Sweph.init().
+    # No separate bundling needed — sweph handles this via its own assets.
+    # If you want to include additional .se1 files (e.g. for dates outside
+    # 1800–2400 CE), add them here and reference them in ephemeris_service.dart.

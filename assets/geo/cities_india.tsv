@@ -1,0 +1,4 @@
+# GeoNames cities500 dataset (India + Gulf + diaspora)
+# Format: name	ascii_name	latitude	longitude	country_code	admin1
+# Download full dataset: geonames.org/export/dump
+# This file is a placeholder. See scripts/download_geonames.sh
