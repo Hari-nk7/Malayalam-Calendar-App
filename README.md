@@ -1,99 +1,134 @@
 # Malayalam Calendar — Nithya Panchangam
 
-A completely offline Malayalam (Kollavarsham) calendar for Android, built with Flutter. No internet connection needed. No ads. No backend.
+A completely offline, high-precision Malayalam (Kollavarsham) calendar and Panchangam for Android and iOS, built with Flutter. No internet connection required. No ads. No tracking. No cloud dependencies.
 
 ---
 
 ## What this is
 
-If you have ever tried to find a reliable digital Malayalam panchang that actually gets the nakshatras right — you know how frustrating it gets. Most apps either pull from an online API (which means they break when you need them most) or they use hardcoded lookup tables that are wrong past 2030.
+Most digital calendar apps for Kerala either rely on remote API calls (leaving you stranded offline) or use rigid, pre-generated lookup tables that quickly become inaccurate or fail beyond a few years.
 
-This app calculates everything from first principles using the **Swiss Ephemeris**, the same astronomical engine used by professional astrologers and observatories. The Sun's exact sidereal longitude determines every month boundary (Sankranti), and the Moon's position at local sunrise determines each day's nakshatra — all computed for your specific location.
+This app calculates all astronomical data from first principles on-device using the **Swiss Ephemeris** (via native C/FFI bindings) — the gold standard used by observatories and professional astrologers worldwide. 
 
----
-
-## What it does
-
-- Displays the complete Malayalam Kollavarsham calendar month by month
-- Computes nakshatras (27 stars) using the **Lahiri ayanamsa** — the Indian government standard
-- Applies the **Kerala Aparahna rule** for correct Sankranti day assignment
-- Correctly handles **spanning nakshatras** (same star across two sunrises) and **skipped nakshatras** (Moon moves faster than one star per day)
-- Sunrise times calculated from your GPS coordinates using a proper solar position algorithm
-- Works entirely offline — no API calls, no cloud sync
-- Swipe left/right to navigate months; tap any day for detailed information
+Designed like a traditional physical Malayalam wall calendar, it provides a seamless dual-perspective experience: navigate in standard Gregorian months with embedded Malayalam dates and nakshatras, or switch to pure Kollavarsham mode.
 
 ---
 
-## The astronomy
+## Key Features
 
-Kollavarsham months begin at Sankrantis — the exact moment the Sun's sidereal longitude crosses a multiple of 30°. The app binary-searches for this moment to within one second accuracy.
+### 📅 Dual-Perspective Calendar Views
+- **Gregorian Primary View:** Standard physical wall calendar layout (January–December). Displays Gregorian dates prominently, with the corresponding Malayalam month, date, and Nakshatra embedded in each cell.
+- **Malayalam Month Visual Transitions:** Subtle per-month color gradients clearly demarcate the transition where one Malayalam month ends and the next begins (e.g., Karkidakam transitioning into Chingam in mid-August).
+- **Malayalam Primary View:** Pure Kollavarsham navigation (*Chingam, Kanni, Thulam...* with accurate Kollavarsham era years, e.g., `1202 KE`). Large traditional dates with secondary Gregorian references.
+- **Instant Bi-Directional Synchronization:** Toggling between Gregorian and Malayalam modes automatically jumps to the corresponding month in the alternate calendar system.
 
-The nakshatra for each day is the one the Moon occupies at local sunrise. Since the Moon moves about 13° per day (roughly one nakshatra width), it occasionally stays in the same nakshatra for two consecutive sunrises (repeat/span) or skips one entirely (skip).
+### 🪐 Astronomical Precision
+- **Lahiri Ayanamsa (Chitra Paksha):** Standard sidereal calculation aligned with the Indian Astronomical Ephemeris.
+- **Kerala Aparahna Rule:** Precise allocation of month-start day based on whether the Sun's Sankranti occurs before or after the traditional Aparahna threshold.
+- **Nakshatra Dynamics:** Correctly handles **spanning nakshatras** (same star spanning two consecutive sunrises) and **skipped nakshatras** (Moon moving through a star entirely between sunrises).
+- **Location-Specific Sunrise Times:** Computed using high-accuracy solar positioning algorithms based on your GPS coordinates or selected city.
 
-Everything is computed in **Sidereal coordinates with Lahiri ayanamsa** — not tropical.
+### 🔍 Deep Astronomical Day Details
+- Tap any date cell to open a comprehensive breakdown:
+  - Exact Malayalam date and Kollavarsham year
+  - Sunrise time for your exact latitude and longitude
+  - Nakshatra active at sunrise, along with entry/exit timestamps
+  - Sun's sidereal longitude and active Rashi
+  - Clear explanations for repeat/spanning and skipped nakshatras
 
----
-
-## Tech stack
-
-| What | Why |
-|---|---|
-| Flutter | Cross-platform, single codebase for Android and iOS |
-| [sweph](https://pub.dev/packages/sweph) | Dart FFI bindings for the Swiss Ephemeris (AGPL-3.0) |
-| Riverpod | State management and async data fetching |
-| Hive | Offline-first month caching — computed once, read instantly |
-| Geolocator | GPS coordinates for sunrise and Aparahna calculation |
-| Google Fonts (Noto Serif Malayalam) | Proper Malayalam script rendering |
-
----
-
-## Running locally
-
-You need Flutter 3.24+ and Java 17.
-
-```bash
-git clone <repo>
-cd "Malayalam Calendar App"
-
-# Point Flutter at Java 17 (required for Gradle)
-flutter config --jdk-dir="$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home"
-
-flutter pub get
-flutter run
-```
-
-For Android, Android SDK is required. For iOS, Xcode is required.
+### ⚡ Offline-First Architecture
+- **Zero Network Calls:** Everything is computed on your device.
+- **Instant Month Caching:** Computed months are cached locally in Hive boxes; once calculated, they load instantly.
+- **Built-in Offline Geodatabase:** Search and select Indian and diaspora cities without requiring active internet access.
 
 ---
 
-## Project structure
+## The Astronomy Behind the Calendar
+
+1. **Sankranti (Month Boundaries):**
+   Kollavarsham months begin when the Sun enters a new sidereal zodiac sign (Rashi boundaries at every 30° multiple, starting from Chingam at 120° Simha). The app performs a binary search on the Sun's sidereal position to pinpoint the Sankranti to sub-second precision.
+
+2. **Aparahna Allocation:**
+   Under traditional Kerala calendar rules, the start date of a Malayalam month depends on whether the Sankranti occurs during the *Aparahna* period (approx. 3/5ths into the day from sunrise to sunset). The app computes local sunrise and sunset to apply this rule accurately.
+
+3. **Sunrise Nakshatras:**
+   The primary star assigned to each day is the Nakshatra occupied by the Moon at local sunrise. The app calculates the Moon's longitude relative to the 27 equal 13°20' lunar divisions.
+
+---
+
+## Tech Stack
+
+| Component | Technology | Purpose |
+|---|---|---|
+| **Framework** | [Flutter](https://flutter.dev) (Dart 3.5+) | Cross-platform UI for Android and iOS |
+| **Astro Engine** | [`sweph`](https://pub.dev/packages/sweph) | Native FFI bindings to Swiss Ephemeris (C library) |
+| **State Management** | [Riverpod](https://riverpod.dev) | Reactive state graph, async family providers, and view sync |
+| **Persistence** | [Hive](https://pub.dev/packages/hive) | Lightweight, ultra-fast NoSQL box storage for cached months |
+| **Location** | [Geolocator](https://pub.dev/packages/geolocator) | GPS coordinate resolution for local sunrise calculations |
+| **Typography** | Google Fonts (`Noto Serif Malayalam`, `Inter`) | Malayalam script and numeral rendering |
+
+---
+
+## Project Structure
 
 ```
 lib/
 ├── core/
-│   ├── astro/              # Nakshatra and Sankranti calculators
-│   └── ephemeris/          # Swiss Ephemeris service wrapper
+│   ├── astro/              # Sankranti & Nakshatra calculation engines
+│   └── ephemeris/          # Swiss Ephemeris lifecycle and FFI wrapper
 ├── data/
 │   ├── models/             # MalayalamDay, MalayalamMonth, LocationModel
-│   └── repositories/       # Calendar, Cache, and Location repos
-├── providers/              # Riverpod providers
+│   └── repositories/       # Calendar, Hive Cache, and Location repositories
+├── providers/              # Riverpod state providers and month resolvers
 └── ui/
-    ├── calendar_grid/      # Main calendar screen
-    ├── day_detail/         # Bottom sheet with full day info
-    ├── settings/           # Location and preferences
-    └── theme/              # App colours and typography
+    ├── calendar_grid/      # Dual-view calendar screens, grids, and view toggles
+    ├── day_detail/         # Detailed astronomical bottom sheet
+    ├── settings/           # Location preferences and GPS settings
+    └── theme/              # Color palette, dark cosmic gradients, and typography
 ```
 
 ---
 
-## Known limitations
+## Building and Running
 
-- **Date range:** Swiss Ephemeris data bundled covers 1800–2400 CE. Dates outside this range will not compute.
-- **Polar regions:** Sunrise may not exist. The app falls back to 6:00 AM local time in that case.
-- **Ayanamsa:** Hardcoded to Lahiri (Chitra Paksha). Other ayanamsas (Raman, Krishnamurti) are not supported.
+### Prerequisites
+- Flutter SDK `^3.24.0`
+- Java 17 (recommended for Gradle builds)
+- Android SDK (API 21+) / Xcode for iOS
+
+### Setup Instructions
+
+```bash
+# Clone the repository
+git clone <repo-url>
+cd "Malayalam Calendar App"
+
+# Ensure Flutter uses Java 17 (if multiple JDKs exist on macOS)
+flutter config --jdk-dir="$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home"
+
+# Install dependencies
+flutter pub get
+
+# Run on a connected device or emulator
+flutter run
+```
+
+### Building Release APK
+```bash
+flutter build apk --release
+```
+
+---
+
+## Astronomical Scope & Notes
+
+- **Ephemeris Range:** The bundled Swiss Ephemeris data files support dates from **1800 to 2400 CE**.
+- **Ayanamsa:** Configured to **Lahiri (Chitra Paksha)**, the standard adopted by the Government of India Calendar Reform Committee and most Kerala panchangam publishers.
+- **Polar Regions:** For extreme latitudes where the sun does not rise or set, calculations fallback gracefully to 06:00 local solar mean time.
 
 ---
 
 ## License
 
-Source code is MIT. The Swiss Ephemeris library (`sweph`) is AGPL-3.0 — if you distribute a modified version of this app, the source must remain open.
+- The application source code is licensed under the **MIT License**.
+- The underlying Swiss Ephemeris library is licensed under **GNU AGPL-3.0**.
