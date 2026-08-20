@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:malayalam_calendar_app/core/ephemeris/ephemeris_service.dart';
 import 'package:malayalam_calendar_app/core/astro/sankranti_calculator.dart';
 import 'package:malayalam_calendar_app/data/models/location_model.dart';
+import 'package:malayalam_calendar_app/data/models/malayalam_day.dart';
 import 'package:malayalam_calendar_app/data/models/malayalam_month.dart';
 import 'package:malayalam_calendar_app/data/repositories/calendar_repository.dart';
 import 'package:malayalam_calendar_app/data/repositories/cache_repository.dart';
@@ -93,6 +94,16 @@ final selectedDateProvider = StateProvider<DateTime>((ref) {
 });
 
 // ---------------------------------------------------------------------------
+// Calendar view mode — Gregorian or Malayalam primary
+// ---------------------------------------------------------------------------
+
+enum CalendarViewMode { gregorian, malayalam }
+
+final calendarViewModeProvider = StateProvider<CalendarViewMode>(
+  (ref) => CalendarViewMode.gregorian,
+);
+
+// ---------------------------------------------------------------------------
 // Calendar month provider (cached + computed on demand)
 // ---------------------------------------------------------------------------
 
@@ -154,15 +165,13 @@ final calendarMonthProvider =
 });
 
 // ---------------------------------------------------------------------------
-// Current displayed month (drives the calendar grid)
+// Current displayed month — Malayalam view (drives the Malayalam calendar grid)
 // ---------------------------------------------------------------------------
 
 final displayedMonthKeyProvider = StateProvider<MonthKey>((ref) {
   final location = ref.watch(locationProvider);
   final now = DateTime.now();
-  // Approximate KE year — exact value is refined after Sankranti computation
   final approxKEYear = SankrantiCalculator.kollavarshamYearApprox(now);
-  // Approximate month index based on current date
   final approxMonthIndex = _approxMalayalamMonthIndex(now);
   return MonthKey(
     kollavarshamYear: approxKEYear,
@@ -171,26 +180,156 @@ final displayedMonthKeyProvider = StateProvider<MonthKey>((ref) {
   );
 });
 
-/// Very rough approximation of the Malayalam month index for a given date.
-/// Used only to initialise [displayedMonthKeyProvider]; the accurate value
-/// comes from the computed [MalayalamMonth].
-int _approxMalayalamMonthIndex(DateTime date) {
-  if (date.month == 8) {
-    // Before ~Aug 17 is Karkidakam (11), from Aug 17 is Chingam (0)
-    return (date.day >= 17) ? 0 : 11;
+// ---------------------------------------------------------------------------
+// Gregorian month view data
+// ---------------------------------------------------------------------------
+
+/// Key for a Gregorian month view.
+class GregorianMonthKey {
+  final int year;
+  final int month; // 1–12
+  final String locationCacheKey;
+
+  const GregorianMonthKey({
+    required this.year,
+    required this.month,
+    required this.locationCacheKey,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GregorianMonthKey &&
+          year == other.year &&
+          month == other.month &&
+          locationCacheKey == other.locationCacheKey;
+
+  @override
+  int get hashCode => year.hashCode ^ month.hashCode ^ locationCacheKey.hashCode;
+}
+
+/// Current displayed Gregorian month (drives the Gregorian calendar grid).
+final displayedGregorianMonthProvider = StateProvider<GregorianMonthKey>((ref) {
+  final now = DateTime.now();
+  final location = ref.watch(locationProvider);
+  return GregorianMonthKey(
+    year: now.year,
+    month: now.month,
+    locationCacheKey: location.cacheKey,
+  );
+});
+
+/// Pairs a MalayalamDay with its containing MalayalamMonth, for Gregorian view.
+class GregorianDayData {
+  final MalayalamDay day;
+  final MalayalamMonth month;
+  const GregorianDayData({required this.day, required this.month});
+}
+
+/// For a given Gregorian month, fetches all overlapping Malayalam months and
+/// returns a list of [GregorianDayData?] — one per day in the Gregorian month.
+/// Null entries mean that date fell outside all computed Malayalam months
+/// (should not happen in practice for dates in 1800–2400 CE range).
+final gregorianMonthDataProvider =
+    FutureProvider.family<List<GregorianDayData?>, GregorianMonthKey>(
+  (ref, key) async {
+    await ref.watch(appInitProvider.future);
+
+    final cache = ref.read(cacheRepositoryProvider);
+    final repo = ref.read(calendarRepositoryProvider);
+    final location = ref.watch(locationProvider);
+
+    final daysInMonth = DateTime(key.year, key.month + 1, 0).day;
+    final firstDay = DateTime(key.year, key.month, 1);
+    final lastDay = DateTime(key.year, key.month, daysInMonth);
+
+    // Find which Malayalam months overlap with this Gregorian month
+    final monthKeys = _overlappingMalayalamKeys(firstDay, lastDay, key.locationCacheKey);
+
+    // Build a map of date → (day, month) for fast lookup
+    final allDays = <DateTime, GregorianDayData>{};
+    for (final mk in monthKeys) {
+      MalayalamMonth? malMonth = cache.getCachedMonth(
+        kollavarshamYear: mk.kollavarshamYear,
+        monthIndex: mk.monthIndex,
+        locationCacheKey: mk.locationCacheKey,
+      );
+      if (malMonth == null) {
+        malMonth = repo.generateMonth(
+          monthIndex: mk.monthIndex,
+          kollavarshamYear: mk.kollavarshamYear,
+          location: location,
+        );
+        await cache.cacheMonth(malMonth);
+      }
+      for (final day in malMonth.days) {
+        final dateKey = DateTime(
+          day.gregorianDate.year,
+          day.gregorianDate.month,
+          day.gregorianDate.day,
+        );
+        allDays[dateKey] = GregorianDayData(day: day, month: malMonth);
+      }
+    }
+
+    // Build result list — one entry per Gregorian day
+    return List.generate(daysInMonth, (i) {
+      final date = DateTime(key.year, key.month, i + 1);
+      return allDays[date];
+    });
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Private helpers
+// ---------------------------------------------------------------------------
+
+/// Returns the 1 or 2 Malayalam MonthKeys that overlap with a given
+/// Gregorian date range. Uses the approximate month mapping — actual
+/// Sankranti boundary is resolved when the month is computed.
+List<MonthKey> _overlappingMalayalamKeys(
+    DateTime firstDay, DateTime lastDay, String locationKey) {
+  final checkDates = [
+    firstDay,
+    firstDay.add(const Duration(days: 15)),
+    lastDay,
+  ];
+  final keys = <MonthKey>[];
+  for (final date in checkDates) {
+    final ke = SankrantiCalculator.kollavarshamYearApprox(date);
+    final mi = _approxMalayalamMonthIndex(date);
+    final k = MonthKey(
+      kollavarshamYear: ke,
+      monthIndex: mi,
+      locationCacheKey: locationKey,
+    );
+    if (!keys.contains(k)) {
+      keys.add(k);
+    }
   }
-  const monthMap = {
-    9: 1,  // Kanni
-    10: 2, // Thulam
-    11: 3, // Vrischikam
-    12: 4, // Dhanu
-    1: 5,  // Makaram
-    2: 6,  // Kumbham
-    3: 7,  // Meenam
-    4: 8,  // Medam
-    5: 9,  // Edavam
-    6: 10, // Mithunam
-    7: 11, // Karkidakam
+  return keys;
+}
+
+/// Approximate Malayalam month index for a given Gregorian date.
+/// Accurately reflects that each Gregorian month starts in one Malayalam month
+/// and transitions to the next around days 13–17.
+int _approxMalayalamMonthIndex(DateTime date) {
+  const transitions = {
+    1: (14, 4, 5),   // Jan: Dhanu(4) -> Makaram(5)
+    2: (13, 5, 6),   // Feb: Makaram(5) -> Kumbham(6)
+    3: (14, 6, 7),   // Mar: Kumbham(6) -> Meenam(7)
+    4: (14, 7, 8),   // Apr: Meenam(7) -> Medam(8)
+    5: (14, 8, 9),   // May: Medam(8) -> Edavam(9)
+    6: (14, 9, 10),  // Jun: Edavam(9) -> Mithunam(10)
+    7: (16, 10, 11), // Jul: Mithunam(10) -> Karkidakam(11)
+    8: (17, 11, 0),  // Aug: Karkidakam(11) -> Chingam(0)
+    9: (17, 0, 1),   // Sep: Chingam(0) -> Kanni(1)
+    10: (17, 1, 2),  // Oct: Kanni(1) -> Thulam(2)
+    11: (16, 2, 3),  // Nov: Thulam(2) -> Vrischikam(3)
+    12: (15, 3, 4),  // Dec: Vrischikam(3) -> Dhanu(4)
   };
-  return monthMap[date.month] ?? 0;
+
+  final t = transitions[date.month];
+  if (t == null) return 0;
+  return (date.day >= t.$1) ? t.$3 : t.$2;
 }
