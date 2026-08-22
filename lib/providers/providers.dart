@@ -10,6 +10,7 @@
 ///   selectedDateProvider (StateProvider)
 library providers;
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:malayalam_calendar_app/core/ephemeris/ephemeris_service.dart';
 import 'package:malayalam_calendar_app/core/astro/sankranti_calculator.dart';
@@ -51,6 +52,10 @@ final appInitProvider = FutureProvider<void>((ref) async {
     cache.initialize(),
     locationRepo.initialize(),
   ]);
+
+  // Sync loaded persisted preferences into state notifiers
+  ref.read(locationProvider.notifier).reloadFromRepo();
+  ref.read(themeModeProvider.notifier).reloadFromRepo();
 });
 
 // ---------------------------------------------------------------------------
@@ -61,6 +66,11 @@ class LocationNotifier extends StateNotifier<LocationModel> {
   final LocationRepository _repo;
 
   LocationNotifier(this._repo) : super(_repo.getSavedLocation());
+
+  /// Syncs state after repository initialization.
+  void reloadFromRepo() {
+    state = _repo.getSavedLocation();
+  }
 
   /// Updates the location and persists it.
   Future<void> setLocation(LocationModel location) async {
@@ -83,6 +93,32 @@ final locationProvider =
     StateNotifierProvider<LocationNotifier, LocationModel>((ref) {
   final repo = ref.read(locationRepositoryProvider);
   return LocationNotifier(repo);
+});
+
+// ---------------------------------------------------------------------------
+// Theme mode state (System / Light / Dark)
+// ---------------------------------------------------------------------------
+
+class ThemeNotifier extends StateNotifier<ThemeMode> {
+  final LocationRepository _repo;
+
+  ThemeNotifier(this._repo) : super(_repo.getSavedThemeMode());
+
+  /// Syncs state after repository initialization.
+  void reloadFromRepo() {
+    state = _repo.getSavedThemeMode();
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    state = mode;
+    await _repo.saveThemeMode(mode);
+  }
+}
+
+final themeModeProvider =
+    StateNotifierProvider<ThemeNotifier, ThemeMode>((ref) {
+  final repo = ref.read(locationRepositoryProvider);
+  return ThemeNotifier(repo);
 });
 
 // ---------------------------------------------------------------------------

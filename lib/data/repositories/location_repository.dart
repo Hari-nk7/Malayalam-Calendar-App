@@ -7,6 +7,7 @@
 library location_repository;
 
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -62,7 +63,7 @@ class LocationRepository {
 
   /// Returns the saved location, or [LocationModel.trivandrum] as default.
   LocationModel getSavedLocation() {
-    _assertOpen();
+    if (!_isOpen) return LocationModel.trivandrum;
     final json = _box.get(_locationKey);
     if (json == null) return LocationModel.trivandrum;
     try {
@@ -82,8 +83,47 @@ class LocationRepository {
 
   /// Returns true if the user has previously saved a location.
   bool hasSavedLocation() {
-    _assertOpen();
+    if (!_isOpen) return false;
     return _box.containsKey(_locationKey);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Persisted theme mode
+  // ---------------------------------------------------------------------------
+
+  static const _themeModeKey = 'theme_mode';
+
+  /// Returns the saved theme mode, or [ThemeMode.system] by default.
+  ThemeMode getSavedThemeMode() {
+    if (!_isOpen) return ThemeMode.system;
+    final mode = _box.get(_themeModeKey);
+    switch (mode) {
+      case 'light':
+        return ThemeMode.light;
+      case 'dark':
+        return ThemeMode.dark;
+      case 'system':
+      default:
+        return ThemeMode.system;
+    }
+  }
+
+  /// Persists the selected theme mode.
+  Future<void> saveThemeMode(ThemeMode mode) async {
+    _assertOpen();
+    String value;
+    switch (mode) {
+      case ThemeMode.light:
+        value = 'light';
+        break;
+      case ThemeMode.dark:
+        value = 'dark';
+        break;
+      case ThemeMode.system:
+        value = 'system';
+        break;
+    }
+    await _box.put(_themeModeKey, value);
   }
 
   // ---------------------------------------------------------------------------

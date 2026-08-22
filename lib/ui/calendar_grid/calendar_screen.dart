@@ -1,10 +1,5 @@
-/// Calendar grid screen — dual-view calendar with Gregorian and Malayalam modes.
-///
-/// Gregorian view: navigate by Jan/Feb/… month; each cell shows the Gregorian
-/// date large, with the Malayalam date + nakshatra embedded inside.
-///
-/// Malayalam view: navigate by ചിങ്ങം/കന്നി/… month; each cell shows the
-/// Malayalam date large, with Gregorian date + nakshatra embedded.
+/// Calendar grid screen — clean, subtle, production-grade dual-view calendar.
+/// Supports both Gregorian and Malayalam primary perspectives with Light and Dark modes.
 library calendar_screen;
 
 import 'package:flutter/material.dart';
@@ -18,22 +13,46 @@ import 'package:malayalam_calendar_app/ui/theme/app_theme.dart';
 import 'package:malayalam_calendar_app/ui/day_detail/day_detail_screen.dart';
 
 // ---------------------------------------------------------------------------
-// Subtle per-Malayalam-month background tints (index 0–11 = Chingam–Karkidakam)
+// Subtle per-Malayalam-month tints (index 0–11 = Chingam–Karkidakam)
+// Ultra-subtle so the UI looks clean, professional, and elegant in both modes.
 // ---------------------------------------------------------------------------
-const List<Color> _monthTints = [
-  Color(0xFF1E1050), // Chingam
-  Color(0xFF0E1E3A), // Kanni
-  Color(0xFF0F2030), // Thulam
-  Color(0xFF1A1535), // Vrischikam
-  Color(0xFF101530), // Dhanu
-  Color(0xFF0C1E30), // Makaram
-  Color(0xFF0F1A35), // Kumbham
-  Color(0xFF12153A), // Meenam
-  Color(0xFF1A1050), // Medam
-  Color(0xFF0E1A30), // Edavam
-  Color(0xFF121535), // Mithunam
-  Color(0xFF141030), // Karkidakam
-];
+Color _getMonthCellColor(int monthIndex, bool isDark) {
+  if (isDark) {
+    // Subtle slate/graphite variations in dark mode
+    final darkTints = [
+      const Color(0xFF1B1D24), // Chingam
+      const Color(0xFF181A20), // Kanni
+      const Color(0xFF191B22), // Thulam
+      const Color(0xFF1C1E26), // Vrischikam
+      const Color(0xFF181B22), // Dhanu
+      const Color(0xFF191A20), // Makaram
+      const Color(0xFF1B1C24), // Kumbham
+      const Color(0xFF1A1B23), // Meenam
+      const Color(0xFF1C1E25), // Medam
+      const Color(0xFF181B21), // Edavam
+      const Color(0xFF191B24), // Mithunam
+      const Color(0xFF1B1D26), // Karkidakam
+    ];
+    return darkTints[monthIndex.clamp(0, 11)];
+  } else {
+    // Crisp white / subtle cool-warm porcelain variations in light mode
+    final lightTints = [
+      const Color(0xFFFFFFFF), // Chingam
+      const Color(0xFFFAFAFB), // Kanni
+      const Color(0xFFFFFFFF), // Thulam
+      const Color(0xFFFAF9FB), // Vrischikam
+      const Color(0xFFFFFFFF), // Dhanu
+      const Color(0xFFF9FAFB), // Makaram
+      const Color(0xFFFFFFFF), // Kumbham
+      const Color(0xFFFAFAFB), // Meenam
+      const Color(0xFFFFFFFF), // Medam
+      const Color(0xFFF9FAFB), // Edavam
+      const Color(0xFFFFFFFF), // Mithunam
+      const Color(0xFFFAFAF9), // Karkidakam
+    ];
+    return lightTints[monthIndex.clamp(0, 11)];
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Main Screen
@@ -104,7 +123,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
       _currentGregPage = targetPage;
       _gregPageController.animateToPage(
         targetPage,
-        duration: const Duration(milliseconds: 400),
+        duration: const Duration(milliseconds: 350),
         curve: Curves.easeInOut,
       );
     } else {
@@ -114,7 +133,24 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
       _currentMlPage = targetPage;
       _mlPageController.animateToPage(
         targetPage,
-        duration: const Duration(milliseconds: 400),
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  void _navigateMonth(int delta) {
+    final mode = ref.read(calendarViewModeProvider);
+    if (mode == CalendarViewMode.gregorian) {
+      _gregPageController.animateToPage(
+        _currentGregPage + delta,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      _mlPageController.animateToPage(
+        _currentMlPage + delta,
+        duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
     }
@@ -125,8 +161,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
     if (currentMode == newMode) return;
 
     if (newMode == CalendarViewMode.malayalam) {
-      // Switching from Gregorian -> Malayalam:
-      // Jump to the first Malayalam month present in the currently displayed Gregorian month (day 1)
+      // Gregorian -> Malayalam: jump to first Malayalam month of Gregorian month (day 1)
       final gm = _gregFromGlobal(_currentGregPage);
       final date = DateTime(gm.year, gm.month, 1);
       final mlYear = SankrantiCalculator.kollavarshamYearApprox(date);
@@ -143,8 +178,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
         _mlPageController.jumpToPage(targetPage);
       }
     } else {
-      // Switching from Malayalam -> Gregorian:
-      // Jump to the Gregorian month where this Malayalam month begins
+      // Malayalam -> Gregorian: jump to Gregorian month where Malayalam month begins
       final mlYear = _currentMlPage ~/ 12;
       final mlMonthIndex = _currentMlPage % 12;
       final baseGregYear = mlYear + 824;
@@ -172,37 +206,36 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
   Widget build(BuildContext context) {
     final viewMode = ref.watch(calendarViewModeProvider);
     final locationKey = ref.watch(locationProvider).cacheKey;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AppTheme.darkBackground : AppTheme.lightBackground;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: true,
+      backgroundColor: bg,
       appBar: _buildAppBar(context, viewMode),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _ViewModeToggle(
-                current: viewMode,
-                onChanged: (mode) => _switchViewMode(mode, locationKey),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _ViewModeToggle(
+              current: viewMode,
+              onChanged: (mode) => _switchViewMode(mode, locationKey),
+            ),
+            const _WeekdayHeader(),
+            const SizedBox(height: 2),
+            Expanded(
+              child: Stack(
+                children: [
+                  Offstage(
+                    offstage: viewMode != CalendarViewMode.gregorian,
+                    child: _buildGregorianView(locationKey),
+                  ),
+                  Offstage(
+                    offstage: viewMode != CalendarViewMode.malayalam,
+                    child: _buildMalayalamView(locationKey),
+                  ),
+                ],
               ),
-              const _WeekdayHeader(),
-              Expanded(
-                child: Stack(
-                  children: [
-                    Offstage(
-                      offstage: viewMode != CalendarViewMode.gregorian,
-                      child: _buildGregorianView(locationKey),
-                    ),
-                    Offstage(
-                      offstage: viewMode != CalendarViewMode.malayalam,
-                      child: _buildMalayalamView(locationKey),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
       floatingActionButton: _TodayFab(onPressed: _goToToday),
@@ -262,6 +295,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
   // ── AppBar ──────────────────────────────────────────────────────────────
 
   PreferredSizeWidget _buildAppBar(BuildContext context, CalendarViewMode mode) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+
     String title;
     if (mode == CalendarViewMode.gregorian) {
       final gKey = ref.watch(displayedGregorianMonthProvider);
@@ -275,21 +312,83 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen>
         error: (_, __) => 'Error',
       );
     }
+
     return AppBar(
-      title: Text(title, style: const TextStyle(color: AppTheme.textPrimary)),
+      title: GestureDetector(
+        onTap: () => _showMonthPicker(context, mode),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  color: textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.arrow_drop_down, color: textMuted),
+            ],
+          ),
+        ),
+      ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.settings_outlined),
+          icon: Icon(Icons.settings_outlined, color: textMuted, size: 22),
           tooltip: 'Settings',
           onPressed: () => Navigator.of(context).pushNamed('/settings'),
         ),
       ],
     );
   }
+
+  void _showMonthPicker(BuildContext context, CalendarViewMode mode) async {
+    int initialMonth;
+    int initialYear;
+    
+    if (mode == CalendarViewMode.gregorian) {
+      final gKey = ref.read(displayedGregorianMonthProvider);
+      initialMonth = gKey.month;
+      initialYear = gKey.year;
+    } else {
+      final mlKey = ref.read(displayedMonthKeyProvider);
+      initialMonth = mlKey.monthIndex;
+      initialYear = mlKey.kollavarshamYear;
+    }
+
+    final result = await showDialog<({int month, int year})>(
+      context: context,
+      builder: (context) => _MonthYearPickerDialog(
+        mode: mode,
+        initialMonth: initialMonth,
+        initialYear: initialYear,
+      ),
+    );
+
+    if (result != null) {
+      if (mode == CalendarViewMode.gregorian) {
+        final targetPage = _gregToGlobal(result.year, result.month);
+        _currentGregPage = targetPage;
+        _gregPageController.jumpToPage(targetPage);
+      } else {
+        final targetPage = _mlToGlobal(result.year, result.month);
+        _currentMlPage = targetPage;
+        _mlPageController.jumpToPage(targetPage);
+      }
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
-// View Mode Toggle
+// View Mode Toggle (iOS / Notion style segmented pill control)
 // ---------------------------------------------------------------------------
 
 class _ViewModeToggle extends StatelessWidget {
@@ -300,19 +399,24 @@ class _ViewModeToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AppTheme.darkSurfaceSubtle : AppTheme.lightSurfaceSubtle;
+    final border = isDark ? AppTheme.darkBorder : AppTheme.lightBorder;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Container(
-        height: 36,
+        height: 38,
+        padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1040),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppTheme.surfaceDivider, width: 0.5),
+          color: bg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: border, width: 1.0),
         ),
         child: Row(
           children: [
             _ToggleOption(
-              label: 'Gregorian',
+              label: 'English',
               selected: current == CalendarViewMode.gregorian,
               onTap: () => onChanged(CalendarViewMode.gregorian),
             ),
@@ -341,25 +445,39 @@ class _ToggleOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final activeBg = isDark ? AppTheme.darkSurface : AppTheme.lightSurface;
+    final border = isDark ? AppTheme.darkBorder : AppTheme.lightBorder;
+
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
-          margin: const EdgeInsets.all(3),
           decoration: BoxDecoration(
-            color: selected ? AppTheme.accentSaffron : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
+            color: selected ? activeBg : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            border: selected ? Border.all(color: border, width: 1.0) : null,
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    )
+                  ]
+                : null,
           ),
           alignment: Alignment.center,
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? AppTheme.primaryDark : AppTheme.textMuted,
+              color: selected ? textPrimary : textMuted,
               fontSize: 13,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              letterSpacing: 0.3,
             ),
           ),
         ),
@@ -373,25 +491,27 @@ class _ToggleOption extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _WeekdayHeader extends StatelessWidget {
-  static const _days = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  static const _days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   const _WeekdayHeader();
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       child: Row(
         children: _days
             .map((d) => Expanded(
                   child: Center(
                     child: Text(
                       d,
-                      style: const TextStyle(
-                        color: AppTheme.textMuted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
+                      style: TextStyle(
+                        color: textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
@@ -454,13 +574,13 @@ class _GregorianMonthGrid extends ConsumerWidget {
     final rows = (totalCells / 7).ceil();
 
     return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 7,
-        childAspectRatio: 0.60,
-        crossAxisSpacing: 2,
-        mainAxisSpacing: 2,
+        childAspectRatio: 0.58,
+        crossAxisSpacing: 4,
+        mainAxisSpacing: 4,
       ),
       itemCount: rows * 7,
       itemBuilder: (ctx, index) {
@@ -526,7 +646,7 @@ class _GregorianDayCellState extends State<_GregorianDayCell>
       vsync: this,
       duration: const Duration(milliseconds: 100),
     );
-    _scale = Tween<double>(begin: 1.0, end: 0.92)
+    _scale = Tween<double>(begin: 1.0, end: 0.94)
         .animate(CurvedAnimation(parent: _press, curve: Curves.easeOut));
   }
 
@@ -538,9 +658,15 @@ class _GregorianDayCellState extends State<_GregorianDayCell>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextSecondary;
+    final border = isDark ? AppTheme.darkBorder : AppTheme.lightBorder;
+    final accent = isDark ? AppTheme.accentAmberDark : AppTheme.accentAmber;
+
     final d = widget.data.day;
     final monthIdx = d.malayalamMonthIndex;
-    final tint = _monthTints[monthIdx.clamp(0, 11)];
+    final cellBg = _getMonthCellColor(monthIdx, isDark);
     final monthName = widget.data.month.monthName;
 
     return GestureDetector(
@@ -553,55 +679,68 @@ class _GregorianDayCellState extends State<_GregorianDayCell>
       child: ScaleTransition(
         scale: _scale,
         child: Container(
-          margin: const EdgeInsets.all(1),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(9),
+            color: widget.isToday
+                ? (isDark ? accent.withOpacity(0.15) : accent.withOpacity(0.08))
+                : cellBg,
+            borderRadius: BorderRadius.circular(10),
             border: widget.isToday
-                ? Border.all(color: AppTheme.todayRing, width: 1.5)
-                : Border.all(color: AppTheme.surfaceDivider, width: 0.5),
-            color: widget.isToday ? const Color(0xFF2D1B6B) : tint,
+                ? Border.all(color: accent, width: 1.8)
+                : Border.all(color: border, width: 1.0),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Gregorian date — primary (large)
+              if (widget.isToday)
+                Text(
+                  'Today',
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 7.0,
+                    fontWeight: FontWeight.w700,
+                    height: 1.0,
+                  ),
+                ),
+              if (widget.isToday) const SizedBox(height: 1),
+              // Gregorian date — primary
               Text(
                 '${widget.gregorianDate.day}',
                 style: TextStyle(
-                  color: widget.isToday
-                      ? AppTheme.accentGold
-                      : AppTheme.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  height: 1.0,
+                  color: widget.isToday ? accent : textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  height: 1.1,
                 ),
               ),
               const SizedBox(height: 2),
-              // Malayalam month + date — secondary
-              Text(
-                '$monthName ${d.malayalamDate}',
-                style: TextStyle(
-                  color: widget.isToday
-                      ? AppTheme.accentGoldLight
-                      : AppTheme.accentSaffron.withOpacity(0.9),
-                  fontSize: 6.5,
-                  fontWeight: FontWeight.w600,
-                  height: 1.0,
+              // Malayalam month + date badge/text
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(isDark ? 0.15 : 0.10),
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
+                child: Text(
+                  '$monthName ${d.malayalamDate}',
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 6.8,
+                    fontWeight: FontWeight.w700,
+                    height: 1.0,
+                  ),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
               ),
               const SizedBox(height: 2),
-              // Nakshatra — tertiary (smallest)
+              // Nakshatra
               Text(
                 _clampNakshatra(d.nakshatraName),
                 style: TextStyle(
-                  color: widget.isToday
-                      ? Colors.white70
-                      : AppTheme.textMuted,
-                  fontSize: 6.0,
-                  fontWeight: FontWeight.w400,
+                  color: textMuted,
+                  fontSize: 6.2,
+                  fontWeight: FontWeight.w500,
                   height: 1.0,
                 ),
                 textAlign: TextAlign.center,
@@ -614,9 +753,9 @@ class _GregorianDayCellState extends State<_GregorianDayCell>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (d.spansFromPreviousDay)
-                    const _FlagDot(color: AppTheme.spanColor),
+                    _FlagDot(color: isDark ? AppTheme.spanColorDark : AppTheme.spanColorLight),
                   if (d.isRepeatOccurrence)
-                    const _FlagDot(color: AppTheme.repeatColor),
+                    _FlagDot(color: isDark ? AppTheme.repeatColorDark : AppTheme.repeatColorLight),
                 ],
               ),
             ],
@@ -628,7 +767,7 @@ class _GregorianDayCellState extends State<_GregorianDayCell>
 }
 
 // ---------------------------------------------------------------------------
-// Malayalam Month Page (same as original but with Gregorian date in cell)
+// Malayalam Month Page
 // ---------------------------------------------------------------------------
 
 class _MalayalamMonthPage extends ConsumerWidget {
@@ -669,13 +808,13 @@ class _MalayalamMonthGrid extends ConsumerWidget {
     final rows = (totalCells / 7).ceil();
 
     return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 7,
-        childAspectRatio: 0.60,
-        crossAxisSpacing: 2,
-        mainAxisSpacing: 2,
+        childAspectRatio: 0.58,
+        crossAxisSpacing: 4,
+        mainAxisSpacing: 4,
       ),
       itemCount: rows * 7,
       itemBuilder: (ctx, index) {
@@ -732,7 +871,7 @@ class _MalayalamDayCellState extends State<_MalayalamDayCell>
       vsync: this,
       duration: const Duration(milliseconds: 100),
     );
-    _scale = Tween<double>(begin: 1.0, end: 0.92)
+    _scale = Tween<double>(begin: 1.0, end: 0.94)
         .animate(CurvedAnimation(parent: _press, curve: Curves.easeOut));
   }
 
@@ -744,8 +883,14 @@ class _MalayalamDayCellState extends State<_MalayalamDayCell>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextSecondary;
+    final border = isDark ? AppTheme.darkBorder : AppTheme.lightBorder;
+    final cardBg = isDark ? AppTheme.darkSurface : AppTheme.lightSurface;
+    final accent = isDark ? AppTheme.accentAmberDark : AppTheme.accentAmber;
+
     final d = widget.day;
-    // Gregorian date label e.g. "Aug 18"
     final gregLabel = DateFormat('MMM d').format(d.gregorianDate);
 
     return GestureDetector(
@@ -758,57 +903,58 @@ class _MalayalamDayCellState extends State<_MalayalamDayCell>
       child: ScaleTransition(
         scale: _scale,
         child: Container(
-          margin: const EdgeInsets.all(1),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(9),
+            color: widget.isToday
+                ? (isDark ? accent.withOpacity(0.15) : accent.withOpacity(0.08))
+                : cardBg,
+            borderRadius: BorderRadius.circular(10),
             border: widget.isToday
-                ? Border.all(color: AppTheme.todayRing, width: 1.5)
-                : Border.all(color: AppTheme.surfaceDivider, width: 0.5),
-            gradient: widget.isToday
-                ? const LinearGradient(
-                    colors: [Color(0xFF3D2B80), Color(0xFF2D1B6B)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : null,
-            color: widget.isToday ? null : AppTheme.surfaceCardDim,
+                ? Border.all(color: accent, width: 1.8)
+                : Border.all(color: border, width: 1.0),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Malayalam date — primary (large, amber)
+              if (widget.isToday)
+                Text(
+                  'Today',
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 7.0,
+                    fontWeight: FontWeight.w700,
+                    height: 1.0,
+                  ),
+                ),
+              if (widget.isToday) const SizedBox(height: 1),
+              // Malayalam date — primary
               Text(
                 '${d.malayalamDate}',
                 style: TextStyle(
-                  color: widget.isToday
-                      ? AppTheme.accentGold
-                      : AppTheme.accentSaffron,
-                  fontSize: 15,
+                  color: accent,
+                  fontSize: 16,
                   fontWeight: FontWeight.w800,
-                  height: 1.0,
+                  height: 1.1,
                 ),
               ),
               const SizedBox(height: 2),
-              // Gregorian date — secondary
+              // Gregorian date
               Text(
                 gregLabel,
                 style: TextStyle(
-                  color: widget.isToday
-                      ? Colors.white
-                      : AppTheme.textSecondary,
-                  fontSize: 7,
-                  fontWeight: FontWeight.w500,
+                  color: textPrimary,
+                  fontSize: 7.5,
+                  fontWeight: FontWeight.w600,
                   height: 1.0,
                 ),
               ),
               const SizedBox(height: 2),
-              // Nakshatra — tertiary
+              // Nakshatra
               Text(
                 _clampNakshatra(d.nakshatraName),
                 style: TextStyle(
-                  color: widget.isToday ? Colors.white70 : AppTheme.textMuted,
-                  fontSize: 6.0,
-                  fontWeight: FontWeight.w400,
+                  color: textMuted,
+                  fontSize: 6.2,
+                  fontWeight: FontWeight.w500,
                   height: 1.0,
                 ),
                 textAlign: TextAlign.center,
@@ -820,9 +966,9 @@ class _MalayalamDayCellState extends State<_MalayalamDayCell>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (d.spansFromPreviousDay)
-                    const _FlagDot(color: AppTheme.spanColor),
+                    _FlagDot(color: isDark ? AppTheme.spanColorDark : AppTheme.spanColorLight),
                   if (d.isRepeatOccurrence)
-                    const _FlagDot(color: AppTheme.repeatColor),
+                    _FlagDot(color: isDark ? AppTheme.repeatColorDark : AppTheme.repeatColorLight),
                 ],
               ),
             ],
@@ -843,16 +989,19 @@ class _EmptyDayCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final border = isDark ? AppTheme.darkBorder : AppTheme.lightBorder;
+    final bg = isDark ? AppTheme.darkSurfaceSubtle : AppTheme.lightSurfaceSubtle;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+
     return Container(
-      margin: const EdgeInsets.all(1),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(9),
-        color: AppTheme.surfaceCardDim.withOpacity(0.3),
-        border: Border.all(color: AppTheme.surfaceDivider, width: 0.5),
+        borderRadius: BorderRadius.circular(10),
+        color: bg,
+        border: Border.all(color: border, width: 1.0),
       ),
-      child: const Center(
-        child: Text('?',
-            style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+      child: Center(
+        child: Text('?', style: TextStyle(color: textMuted, fontSize: 12)),
       ),
     );
   }
@@ -879,18 +1028,21 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textSecondary = isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, color: AppTheme.skipColor, size: 48),
+            const Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444), size: 44),
             const SizedBox(height: 12),
             Text(
               'Could not compute this month.\n$message',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppTheme.textSecondary),
+              style: TextStyle(color: textSecondary, fontSize: 13),
             ),
           ],
         ),
@@ -905,12 +1057,16 @@ class _TodayFab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = isDark ? AppTheme.accentAmberDark : AppTheme.accentAmber;
+
     return FloatingActionButton.small(
       onPressed: onPressed,
-      backgroundColor: AppTheme.accentSaffron,
-      foregroundColor: AppTheme.primaryDark,
+      backgroundColor: accent,
+      foregroundColor: isDark ? Colors.black : Colors.white,
       tooltip: 'Go to today',
-      child: const Icon(Icons.today),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: const Icon(Icons.today_rounded, size: 20),
     );
   }
 }
@@ -929,13 +1085,13 @@ class _ShimmerGrid extends StatelessWidget {
       animation: controller,
       builder: (_, __) {
         return GridView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 7,
-            childAspectRatio: 0.60,
-            crossAxisSpacing: 2,
-            mainAxisSpacing: 2,
+            childAspectRatio: 0.58,
+            crossAxisSpacing: 4,
+            mainAxisSpacing: 4,
           ),
           itemCount: 35,
           itemBuilder: (_, __) => _ShimmerCell(progress: controller.value),
@@ -951,16 +1107,20 @@ class _ShimmerCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseColor = isDark ? const Color(0xFF181A1F) : const Color(0xFFF1F3F5);
+    final highlightColor = isDark ? const Color(0xFF262933) : const Color(0xFFE2E8F0);
+
     final shimmerColor = Color.lerp(
-      const Color(0xFF1E1550),
-      const Color(0xFF2E2570),
+      baseColor,
+      highlightColor,
       (progress * 2 - (progress * 2).floor()).abs(),
     )!;
+
     return Container(
-      margin: const EdgeInsets.all(1),
       decoration: BoxDecoration(
         color: shimmerColor,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(10),
       ),
     );
   }
@@ -971,7 +1131,6 @@ class _ShimmerCell extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 String _clampNakshatra(String name) {
-  // Show up to 6 chars of nakshatra (Malayalam glyphs are wide)
   return name.length > 6 ? name.substring(0, 6) : name;
 }
 
@@ -994,4 +1153,133 @@ int _approxMalayalamMonthIndex(DateTime date) {
   final t = transitions[date.month];
   if (t == null) return 0;
   return (date.day >= t.$1) ? t.$3 : t.$2;
+}
+
+// ---------------------------------------------------------------------------
+// Month & Year Picker Dialog
+// ---------------------------------------------------------------------------
+
+class _MonthYearPickerDialog extends StatefulWidget {
+  final CalendarViewMode mode;
+  final int initialMonth; // 1-12 for Greg, 0-11 for Mal
+  final int initialYear;
+
+  const _MonthYearPickerDialog({
+    required this.mode,
+    required this.initialMonth,
+    required this.initialYear,
+  });
+
+  @override
+  State<_MonthYearPickerDialog> createState() => _MonthYearPickerDialogState();
+}
+
+class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
+  late int _selectedMonth;
+  late int _selectedYear;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedMonth = widget.initialMonth;
+    _selectedYear = widget.initialYear;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isGreg = widget.mode == CalendarViewMode.gregorian;
+    
+    final List<String> monthNames = isGreg
+        ? [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+          ]
+        : [
+            'Chingam', 'Kanni', 'Thulam', 'Vrischikam', 'Dhanu', 'Makaram',
+            'Kumbham', 'Meenam', 'Medam', 'Edavam', 'Mithunam', 'Karkidakam'
+          ];
+          
+    final int minYear = isGreg ? 1900 : 1000;
+    final int maxYear = isGreg ? 2100 : 1300;
+    
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AppTheme.darkSurface : AppTheme.lightSurface;
+    final text = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+
+    return AlertDialog(
+      backgroundColor: bg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(
+        'Select Month & Year',
+        style: TextStyle(color: text, fontWeight: FontWeight.w600, fontSize: 18),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Month Dropdown
+          DropdownButtonFormField<int>(
+            value: _selectedMonth,
+            dropdownColor: bg,
+            style: TextStyle(color: text, fontSize: 16),
+            decoration: InputDecoration(
+              labelText: 'Month',
+              labelStyle: TextStyle(color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            items: List.generate(12, (index) {
+              final val = isGreg ? index + 1 : index;
+              return DropdownMenuItem(
+                value: val,
+                child: Text(monthNames[index]),
+              );
+            }),
+            onChanged: (val) {
+              if (val != null) setState(() => _selectedMonth = val);
+            },
+          ),
+          const SizedBox(height: 16),
+          // Year Dropdown
+          DropdownButtonFormField<int>(
+            value: _selectedYear,
+            dropdownColor: bg,
+            style: TextStyle(color: text, fontSize: 16),
+            menuMaxHeight: 300,
+            decoration: InputDecoration(
+              labelText: 'Year',
+              labelStyle: TextStyle(color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            items: List.generate(maxYear - minYear + 1, (index) {
+              final val = minYear + index;
+              return DropdownMenuItem(
+                value: val,
+                child: Text('$val'),
+              );
+            }),
+            onChanged: (val) {
+              if (val != null) setState(() => _selectedYear = val);
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text('Cancel', style: TextStyle(color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted)),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(context).pop((month: _selectedMonth, year: _selectedYear)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.accentAmber,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            elevation: 0,
+          ),
+          child: const Text('Go', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+      ],
+    );
+  }
 }

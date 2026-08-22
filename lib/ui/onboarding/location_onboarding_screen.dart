@@ -35,7 +35,7 @@ class _LocationOnboardingScreenState
     super.initState();
     _fadeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 500),
     );
     _fadeAnim = CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
     _fadeController.forward();
@@ -50,170 +50,191 @@ class _LocationOnboardingScreenState
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AppTheme.darkBackground : AppTheme.lightBackground;
+    final surface = isDark ? AppTheme.darkSurface : AppTheme.lightSurface;
+    final border = isDark ? AppTheme.darkBorder : AppTheme.lightBorder;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textSecondary = isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final accent = isDark ? AppTheme.accentAmberDark : AppTheme.accentAmber;
+
     return Scaffold(
-      backgroundColor: AppTheme.primaryDark,
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
-        child: FadeTransition(
-          opacity: _fadeAnim,
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Spacer(),
+      backgroundColor: bg,
+      body: FadeTransition(
+        opacity: _fadeAnim,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Spacer(),
 
-                  // Logo / icon area
-                  Center(
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [AppTheme.accentSaffron, AppTheme.accentGold],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.accentSaffron.withOpacity(0.4),
-                            blurRadius: 24,
-                            spreadRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.calendar_month_rounded,
-                        color: AppTheme.primaryDark,
-                        size: 40,
-                      ),
+                // Minimalist logo icon
+                Center(
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: accent.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: accent.withOpacity(0.3), width: 1.5),
+                    ),
+                    child: Icon(
+                      Icons.location_on_rounded,
+                      color: accent,
+                      size: 34,
                     ),
                   ),
+                ),
 
-                  const SizedBox(height: 32),
+                const SizedBox(height: 32),
 
-                  const Text(
-                    'Your location\nmatters here.',
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 34,
-                      fontWeight: FontWeight.w700,
-                      height: 1.2,
+                Text(
+                  'Set Your Location',
+                  style: TextStyle(
+                    color: textPrimary,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                    height: 1.15,
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                Text(
+                  'Each day\'s Nakshatra (star) and Sankranti allocation are referenced to your exact local sunrise time.',
+                  style: TextStyle(
+                    color: textSecondary,
+                    fontSize: 14,
+                    height: 1.55,
+                  ),
+                ),
+
+                const Spacer(),
+
+                if (!_showSearch) ...[
+                  // GPS button
+                  FilledButton.icon(
+                    onPressed: _isLoading ? null : _requestGps,
+                    icon: _isLoading
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: isDark ? Colors.black : Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.my_location_rounded, size: 18),
+                    label: const Text('Use My Current Location'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor: isDark ? Colors.black : Colors.white,
+                      minimumSize: const Size.fromHeight(50),
+                      textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                   ),
-
-                  const SizedBox(height: 16),
-
-                  const Text(
-                    'The nakshatra (star) of each day is determined '
-                    'by the Moon\'s position at YOUR local sunrise — '
-                    'which changes depending on where you are.',
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 15,
-                      height: 1.6,
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: () => setState(() => _showSearch = true),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: textPrimary,
+                      side: BorderSide(color: border),
+                      minimumSize: const Size.fromHeight(50),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: const Text('Search City Manually'),
+                  ),
+                ] else ...[
+                  // City search
+                  TextField(
+                    controller: _searchController,
+                    autofocus: true,
+                    style: TextStyle(color: textPrimary),
+                    onChanged: _onSearchChanged,
+                    decoration: InputDecoration(
+                      hintText: 'Search city (e.g. Kochi, Dubai)…',
+                      prefixIcon: Icon(Icons.search_rounded, color: textMuted),
                     ),
                   ),
-
-                  const Spacer(),
-
-                  if (!_showSearch) ...[
-                    // GPS button
-                    _PrimaryButton(
-                      label: 'Use My Location',
-                      icon: Icons.my_location,
-                      isLoading: _isLoading,
-                      onPressed: _requestGps,
-                    ),
-                    const SizedBox(height: 12),
-                    _SecondaryButton(
-                      label: 'Choose City Manually',
-                      onPressed: () => setState(() => _showSearch = true),
-                    ),
-                  ] else ...[
-                    // City search
-                    TextField(
-                      controller: _searchController,
-                      autofocus: true,
-                      style: const TextStyle(color: AppTheme.textPrimary),
-                      onChanged: _onSearchChanged,
-                      decoration: const InputDecoration(
-                        hintText: 'Search for your city…',
-                        prefixIcon: Icon(Icons.search, color: AppTheme.textMuted),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    if (_searchResults.isNotEmpty)
-                      Container(
-                        constraints: const BoxConstraints(maxHeight: 220),
-                        decoration: BoxDecoration(
-                          color: AppTheme.surfaceCard,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppTheme.surfaceDivider),
-                        ),
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: _searchResults.length,
-                          itemBuilder: (_, i) {
-                            final city = _searchResults[i];
-                            return ListTile(
-                              leading: const Icon(
-                                Icons.location_on_outlined,
-                                color: AppTheme.accentSaffron,
-                                size: 18,
-                              ),
-                              title: Text(city.name,
-                                  style: const TextStyle(
-                                    color: AppTheme.textPrimary,
-                                    fontSize: 14,
-                                  )),
-                              subtitle: Text(
-                                '${city.admin1}, ${city.countryCode}',
-                                style: const TextStyle(
-                                  color: AppTheme.textMuted,
-                                  fontSize: 11,
-                                ),
-                              ),
-                              onTap: () => _selectCity(city),
-                              dense: true,
-                            );
-                          },
-                        ),
-                      ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () => setState(() => _showSearch = false),
-                      child: const Text(
-                        '← Back',
-                        style: TextStyle(color: AppTheme.textMuted),
-                      ),
-                    ),
-                  ],
-
-                  // Skip with Trivandrum as default
                   const SizedBox(height: 8),
-                  Center(
-                    child: TextButton(
-                      onPressed: () {
-                        // Use Trivandrum as safe default
-                        ref
-                            .read(locationProvider.notifier)
-                            .setLocation(LocationModel.trivandrum)
-                            .then((_) => widget.onLocationSet());
-                      },
-                      child: const Text(
-                        'Skip for now (use Thiruvananthapuram)',
-                        style: TextStyle(
-                          color: AppTheme.textMuted,
-                          fontSize: 12,
-                        ),
+                  if (_searchResults.isNotEmpty)
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 220),
+                      decoration: BoxDecoration(
+                        color: surface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: border),
+                      ),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _searchResults.length,
+                        itemBuilder: (_, i) {
+                          final city = _searchResults[i];
+                          return ListTile(
+                            leading: Icon(
+                              Icons.location_city_rounded,
+                              color: accent,
+                              size: 18,
+                            ),
+                            title: Text(
+                              city.name,
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text(
+                              '${city.admin1}, ${city.countryCode}',
+                              style: TextStyle(
+                                color: textMuted,
+                                fontSize: 11,
+                              ),
+                            ),
+                            onTap: () => _selectCity(city),
+                            dense: true,
+                          );
+                        },
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => setState(() => _showSearch = false),
+                    child: Text(
+                      '← Back',
+                      style: TextStyle(color: textMuted),
+                    ),
+                  ),
+                ],
+
+                // Skip with Trivandrum as default
+                const SizedBox(height: 8),
+                Center(
+                  child: TextButton(
+                    onPressed: () {
+                      ref
+                          .read(locationProvider.notifier)
+                          .setLocation(LocationModel.trivandrum)
+                          .then((_) => widget.onLocationSet());
+                    },
+                    child: Text(
+                      'Skip for now (use Thiruvananthapuram)',
+                      style: TextStyle(
+                        color: textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
+                ),
 
-                  const SizedBox(height: 16),
-                ],
-              ),
+                const SizedBox(height: 12),
+              ],
             ),
           ),
         ),
@@ -250,65 +271,5 @@ class _LocationOnboardingScreenState
         .read(locationProvider.notifier)
         .setLocation(city.toLocationModel());
     if (mounted) widget.onLocationSet();
-  }
-}
-
-class _PrimaryButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool isLoading;
-  final VoidCallback onPressed;
-
-  const _PrimaryButton({
-    required this.label,
-    required this.icon,
-    required this.isLoading,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return FilledButton.icon(
-      onPressed: isLoading ? null : onPressed,
-      icon: isLoading
-          ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppTheme.primaryDark,
-              ),
-            )
-          : Icon(icon, size: 18),
-      label: Text(label),
-      style: FilledButton.styleFrom(
-        backgroundColor: AppTheme.accentSaffron,
-        foregroundColor: AppTheme.primaryDark,
-        minimumSize: const Size.fromHeight(52),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      ),
-    );
-  }
-}
-
-class _SecondaryButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onPressed;
-
-  const _SecondaryButton({required this.label, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton(
-      onPressed: onPressed,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppTheme.textPrimary,
-        side: const BorderSide(color: AppTheme.surfaceDivider),
-        minimumSize: const Size.fromHeight(52),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      ),
-      child: Text(label),
-    );
   }
 }

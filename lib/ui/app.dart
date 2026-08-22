@@ -15,10 +15,14 @@ class MalayalamCalendarApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+
     return MaterialApp(
       title: 'Malayalam Calendar',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: themeMode,
       initialRoute: '/',
       routes: {
         '/': (ctx) => const _RootGate(),
@@ -59,75 +63,71 @@ class _SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AppTheme.darkBackground : AppTheme.lightBackground;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+
     return Scaffold(
-      backgroundColor: AppTheme.primaryDark,
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Lamp icon
-              Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [AppTheme.accentSaffron, AppTheme.accentGold],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.accentSaffron.withOpacity(0.5),
-                      blurRadius: 32,
-                      spreadRadius: 8,
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.calendar_month_rounded,
-                  color: AppTheme.primaryDark,
-                  size: 44,
+      backgroundColor: bg,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: AppTheme.accentAmber.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppTheme.accentAmber.withOpacity(0.3),
+                  width: 1.5,
                 ),
               ),
-              const SizedBox(height: 28),
-              const Text(
-                'Malayalam Calendar',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
-                ),
+              child: const Icon(
+                Icons.calendar_month_rounded,
+                color: AppTheme.accentAmber,
+                size: 36,
               ),
-              const SizedBox(height: 6),
-              const Text(
-                'Kollavarsham • Nirayana • Lahiri',
-                style: TextStyle(
-                  color: AppTheme.textMuted,
-                  fontSize: 12,
-                  letterSpacing: 1.0,
-                ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Malayalam Calendar',
+              style: TextStyle(
+                color: textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
               ),
-              const SizedBox(height: 40),
-              const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(AppTheme.accentSaffron),
-                ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Nithya Panchangam • Kollavarsham',
+              style: TextStyle(
+                color: textMuted,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Initialising ephemeris…',
-                style: TextStyle(
-                  color: AppTheme.textMuted,
-                  fontSize: 12,
-                ),
+            ),
+            const SizedBox(height: 36),
+            const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.2,
+                valueColor: AlwaysStoppedAnimation(AppTheme.accentAmber),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Initialising astronomical data…',
+              style: TextStyle(
+                color: textMuted,
+                fontSize: 12,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -140,21 +140,26 @@ class _ErrorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AppTheme.darkBackground : AppTheme.lightBackground;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textSecondary = isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
+
     return Scaffold(
-      backgroundColor: AppTheme.primaryDark,
+      backgroundColor: bg,
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, color: AppTheme.skipColor, size: 56),
+              const Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 48),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Initialisation failed',
                 style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 20,
+                  color: textPrimary,
+                  fontSize: 18,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -162,8 +167,8 @@ class _ErrorScreen extends StatelessWidget {
               Text(
                 error,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
+                style: TextStyle(
+                  color: textSecondary,
                   fontSize: 13,
                 ),
               ),

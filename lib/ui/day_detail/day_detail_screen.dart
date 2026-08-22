@@ -36,52 +36,63 @@ class DayDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AppTheme.darkSurface : AppTheme.lightSurface;
+    final border = isDark ? AppTheme.darkBorder : AppTheme.lightBorder;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final spanColor = isDark ? AppTheme.spanColorDark : AppTheme.spanColorLight;
+    final repeatColor = isDark ? AppTheme.repeatColorDark : AppTheme.repeatColorLight;
+    final skipColor = isDark ? AppTheme.skipColorDark : AppTheme.skipColorLight;
+
     return DraggableScrollableSheet(
       initialChildSize: 0.72,
       minChildSize: 0.4,
       maxChildSize: 0.95,
       builder: (_, scrollController) => Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF2D1B6B), Color(0xFF1A1040)],
-          ),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           border: Border(
-            top: BorderSide(color: AppTheme.surfaceDivider, width: 0.5),
+            top: BorderSide(color: border, width: 1.0),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.4 : 0.1),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
+            )
+          ],
         ),
         child: Column(
           children: [
             // Drag handle
             Container(
-              margin: const EdgeInsets.only(top: 12, bottom: 4),
-              width: 40,
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: AppTheme.textMuted,
+                color: textMuted.withOpacity(0.4),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             Expanded(
               child: SingleChildScrollView(
                 controller: scrollController,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildHeader(),
+                    _buildHeader(context),
                     const SizedBox(height: 24),
-                    _buildDateCard(),
-                    const SizedBox(height: 16),
+                    _buildDateCard(context),
+                    const SizedBox(height: 14),
                     _buildNakshatraCard(context),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                     if (day.spansFromPreviousDay) ...[
                       _buildFlagCard(
                         context: context,
-                        icon: Icons.hourglass_full,
-                        color: AppTheme.spanColor,
+                        icon: Icons.hourglass_full_rounded,
+                        color: spanColor,
                         title: 'Spanning Nakshatra',
                         explanation:
                             '${day.nakshatraName} also governed yesterday\'s '
@@ -91,17 +102,17 @@ class DayDetailSheet extends StatelessWidget {
                             'sunrises. In traditional Kerala panchang practice, '
                             'this nakshatra is counted for both days.',
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
                     ],
                     if (day.isRepeatOccurrence) ...[
-                      _buildRepeatCard(context),
-                      const SizedBox(height: 16),
+                      _buildRepeatCard(context, repeatColor),
+                      const SizedBox(height: 14),
                     ],
                     if (month.skippedNakshatras.isNotEmpty) ...[
-                      _buildSkippedCard(context),
-                      const SizedBox(height: 16),
+                      _buildSkippedCard(context, skipColor),
+                      const SizedBox(height: 14),
                     ],
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),
@@ -112,80 +123,102 @@ class DayDetailSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textSecondary = isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final accent = isDark ? AppTheme.accentAmberDark : AppTheme.accentAmber;
+
     final gregorianFormatted =
         DateFormat('EEEE, d MMMM y').format(day.gregorianDate);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '${day.malayalamDate} ${month.monthName}',
-          style: const TextStyle(
-            color: AppTheme.accentGold,
-            fontSize: 36,
-            fontWeight: FontWeight.w700,
-            height: 1.1,
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              '${day.malayalamDate} ${month.monthName}',
+              style: TextStyle(
+                color: accent,
+                fontSize: 32,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+                height: 1.1,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${month.kollavarshamYear} KE',
+              style: TextStyle(
+                color: textSecondary,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
-        Text(
-          '${month.kollavarshamYear} Kollavarsham',
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         Text(
           gregorianFormatted,
-          style: const TextStyle(
-            color: AppTheme.textMuted,
+          style: TextStyle(
+            color: textMuted,
             fontSize: 13,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildDateCard() {
+  Widget _buildDateCard(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = isDark ? AppTheme.accentAmberDark : AppTheme.accentAmber;
     final sunriseLocal = day.sunriseUtc.toLocal();
     final sunriseFormatted = DateFormat('h:mm a').format(sunriseLocal);
 
     return _InfoCard(
-      icon: Icons.wb_sunny_outlined,
-      iconColor: AppTheme.accentSaffron,
-      title: 'Sunrise',
+      icon: Icons.wb_sunny_rounded,
+      iconColor: accent,
+      title: 'Sunrise Time',
       subtitle: sunriseFormatted,
-      detail: 'All astronomical observations (nakshatra, etc.) are '
-          'anchored to this local sunrise time.',
+      detail: 'All astronomical boundaries and Nakshatras in this calendar '
+          'are referenced to this exact local sunrise.',
     );
   }
 
   Widget _buildNakshatraCard(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final repeatColor = isDark ? AppTheme.repeatColorDark : AppTheme.repeatColorLight;
     final start = getNakshatraStartDegree(day.nakshatraIndex);
     final end = getNakshatraEndDegree(day.nakshatraIndex);
 
     return _InfoCard(
-      icon: Icons.star_outline,
-      iconColor: AppTheme.accentGoldLight,
-      title: 'Nakshatra of the Day',
+      icon: Icons.auto_awesome_rounded,
+      iconColor: isDark ? AppTheme.accentAmberDark : AppTheme.accentAmber,
+      title: 'Active Nakshatra',
       subtitle: day.nakshatraName,
       detail:
           'The Moon occupied ${day.nakshatraName} (${start.toStringAsFixed(2)}°'
-          '– ${end.toStringAsFixed(2)}° sidereal) at local sunrise today.\n\n'
-          'Nakshatra ${day.nakshatraIndex + 1} of 27 in the Lahiri sidereal '
-          'zodiac. Each nakshatra spans exactly 13°20\'.',
+          '– ${end.toStringAsFixed(2)}° sidereal) at local sunrise.\n\n'
+          'Star ${day.nakshatraIndex + 1} of 27 in the Lahiri (Chitra Paksha) '
+          'sidereal zodiac.',
       badge: day.isRepeatOccurrence
           ? _Badge(
-              label: day.hasLaterRepeat ? '1st occurrence' : '2nd occurrence',
-              color: AppTheme.repeatColor,
+              label: day.hasLaterRepeat ? '1st Occurrence' : '2nd Occurrence',
+              color: repeatColor,
             )
           : null,
     );
   }
 
-  Widget _buildRepeatCard(BuildContext context) {
-    // Find the other occurrence(s) in the same month
+  Widget _buildRepeatCard(BuildContext context, Color repeatColor) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textSecondary = isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
+
     final otherDays = month.days.where((d) =>
         d.nakshatraIndex == day.nakshatraIndex &&
         d.gregorianDate != day.gregorianDate);
@@ -197,57 +230,53 @@ class DayDetailSheet extends StatelessWidget {
     final isFirst = day.hasLaterRepeat;
 
     return _FlagCard(
-      icon: Icons.refresh,
-      color: AppTheme.repeatColor,
-      title: 'Nakshatra Repeats This Month',
+      icon: Icons.refresh_rounded,
+      color: repeatColor,
+      title: 'Repeating Star This Month',
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${day.nakshatraName} appears ${isFirst ? 'again' : 'earlier'} '
+            '${day.nakshatraName} occurs ${isFirst ? 'again' : 'earlier'} '
             'on $otherDateStr in this month.',
-            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
+            style: TextStyle(
+              color: textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
-            'This happens because the Moon\'s sidereal cycle (~27.3 days) '
-            'is shorter than a Malayalam month (~29–32 days), so the Moon '
-            'completes its circuit and revisits the same nakshatra before '
-            'the month ends.',
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
+            'Because the Moon\'s sidereal cycle (~27.3 days) is shorter than '
+            'a solar month (~29–32 days), the Moon revisits this star before the month ends.',
+            style: TextStyle(
+              color: textSecondary,
               fontSize: 13,
-              height: 1.5,
+              height: 1.45,
             ),
           ),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppTheme.repeatColor.withOpacity(0.1),
+              color: repeatColor.withOpacity(0.08),
               borderRadius: BorderRadius.circular(10),
-              border:
-                  Border.all(color: AppTheme.repeatColor.withOpacity(0.3)),
+              border: Border.all(color: repeatColor.withOpacity(0.25)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.info_outline,
-                    size: 16, color: AppTheme.repeatColor),
+                Icon(Icons.info_outline_rounded, size: 16, color: repeatColor),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Kerala tradition is genuinely divided on which '
-                    'occurrence to use for birthday and anniversary '
-                    'observances. The ${isFirst ? 'second' : 'first'} '
-                    'occurrence ($otherDateStr) is the commonly observed '
-                    'default, but many families follow the '
-                    '${isFirst ? 'first' : 'second'} occurrence. Both are '
-                    'shown here — consult your family tradition.',
-                    style: const TextStyle(
-                      color: AppTheme.repeatColor,
+                    'Kerala tradition varies on which occurrence is observed for birthdays '
+                    'and rituals. The ${isFirst ? 'second' : 'first'} occurrence ($otherDateStr) '
+                    'is the common default, but family traditions vary.',
+                    style: TextStyle(
+                      color: repeatColor,
                       fontSize: 12,
-                      height: 1.5,
+                      height: 1.45,
                     ),
                   ),
                 ),
@@ -257,17 +286,17 @@ class DayDetailSheet extends StatelessWidget {
           if (!isFirst) ...[
             const SizedBox(height: 8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: AppTheme.repeatColor.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
+                color: repeatColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(6),
               ),
-              child: const Text(
+              child: Text(
                 '★ Commonly observed occurrence',
                 style: TextStyle(
-                  color: AppTheme.repeatColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  color: repeatColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -277,43 +306,41 @@ class DayDetailSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildSkippedCard(BuildContext context) {
+  Widget _buildSkippedCard(BuildContext context, Color skipColor) {
     if (month.skippedNakshatras.isEmpty) return const SizedBox.shrink();
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textSecondary = isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
 
     final skippedNames = month.skippedNakshatras
         .map((i) => getNakshatraName(i))
         .join(', ');
 
     return _FlagCard(
-      icon: Icons.skip_next,
-      color: AppTheme.skipColor,
-      title: 'Skipped Nakshatra(s) This Month',
+      icon: Icons.skip_next_rounded,
+      color: skipColor,
+      title: 'Skipped Nakshatra(s)',
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '$skippedNames ${month.skippedNakshatras.length == 1 ? 'was' : 'were'} '
             'skipped this month.',
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
+            style: TextStyle(
+              color: textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'The Moon entered and fully exited '
-            '${month.skippedNakshatras.length == 1 ? 'this nakshatra\'s' : 'these nakshatras\''} '
-            'span between two consecutive sunrises. '
-            'When the Moon moves faster than its average rate '
-            '(up to ~15.4°/day, vs. a nakshatra width of 13°20\'), '
-            'it is possible to transit an entire nakshatra without '
-            'that nakshatra "owning" a sunrise. Such a nakshatra has '
-            'no day in this month\'s calendar.',
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
+            'The Moon entered and exited this star\'s span between two consecutive sunrises. '
+            'Because lunar motion was fast, no sunrise fell inside this star.',
+            style: TextStyle(
+              color: textSecondary,
               fontSize: 13,
-              height: 1.5,
+              height: 1.45,
             ),
           ),
         ],
@@ -328,16 +355,19 @@ class DayDetailSheet extends StatelessWidget {
     required String title,
     required String explanation,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textSecondary = isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
+
     return _FlagCard(
       icon: icon,
       color: color,
       title: title,
       body: Text(
         explanation,
-        style: const TextStyle(
-          color: AppTheme.textSecondary,
+        style: TextStyle(
+          color: textSecondary,
           fontSize: 13,
-          height: 1.6,
+          height: 1.5,
         ),
       ),
     );
@@ -367,12 +397,19 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppTheme.darkSurfaceSubtle : AppTheme.lightSurfaceSubtle;
+    final border = isDark ? AppTheme.darkBorder : AppTheme.lightBorder;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textSecondary = isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceCard,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.surfaceDivider, width: 0.5),
+        border: Border.all(color: border, width: 1.0),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -381,13 +418,15 @@ class _InfoCard extends StatelessWidget {
             children: [
               Icon(icon, color: iconColor, size: 18),
               const SizedBox(width: 8),
-              Text(title,
-                  style: const TextStyle(
-                    color: AppTheme.textMuted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                  )),
+              Text(
+                title.toUpperCase(),
+                style: TextStyle(
+                  color: textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+              ),
               if (badge != null) ...[
                 const Spacer(),
                 badge!,
@@ -395,19 +434,24 @@ class _InfoCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Text(subtitle,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-              )),
-          const SizedBox(height: 8),
-          Text(detail,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12,
-                height: 1.5,
-              )),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: textPrimary,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            detail,
+            style: TextStyle(
+              color: textSecondary,
+              fontSize: 12.5,
+              height: 1.45,
+            ),
+          ),
         ],
       ),
     );
@@ -432,9 +476,9 @@ class _FlagCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withOpacity(0.06),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3), width: 0.5),
+        border: Border.all(color: color.withOpacity(0.25), width: 1.0),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -472,16 +516,16 @@ class _Badge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.4)),
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Text(
         label,
         style: TextStyle(
           color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
